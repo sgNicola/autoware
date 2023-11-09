@@ -85,6 +85,7 @@ ObjectAssociationMergerNode::ObjectAssociationMergerNode(const rclcpp::NodeOptio
 
   // Parameters
   base_link_frame_id_ = declare_parameter<std::string>("base_link_frame_id", "base_link");
+  // base_link_frame_id_ = declare_parameter<std::string>("base_link_frame_id", "map_link");
   priority_mode_ = static_cast<PriorityMode>(
     declare_parameter<int>("priority_mode", static_cast<int>(PriorityMode::Confidence)));
   remove_overlapped_unknown_objects_ =
