@@ -151,22 +151,26 @@ void ObjectAssociationMergerNode::objectsCallback(
       const auto & object1 = objects1.at(direct_assignment.at(object0_idx));
       switch (priority_mode_) {
         case PriorityMode::Object0:
-          output_msg.objects.push_back(object0);
+          // output_msg.objects.push_back(object0);
           break;
         case PriorityMode::Object1:
-          output_msg.objects.push_back(object1);
+          // output_msg.objects.push_back(object1);
           break;
         case PriorityMode::Confidence:
-          if (object1.existence_probability <= object0.existence_probability)
-            output_msg.objects.push_back(object0);
-          else
+          // if (object1.existence_probability <= object0.existence_probability)
+          //   output_msg.objects.push_back(object0);
+          // else
             output_msg.objects.push_back(object1);
           break;
       }
     } else {  // not found
-      output_msg.objects.push_back(object0);
+      // output_msg.objects.push_back(object0);
     }
+        // Unused variable object1 intentionally left unused
+    (void)object0;
   }
+  // If object0_idx is not found in direct_assignment, it means that there is no corresponding object in objects1. 
+  // In this case, it adds object0 to the output_msg.objects vector.
   for (size_t object1_idx = 0; object1_idx < objects1.size(); ++object1_idx) {
     const auto & object1 = objects1.at(object1_idx);
     if (reverse_assignment.find(object1_idx) != reverse_assignment.end()) {  // found
@@ -202,7 +206,7 @@ void ObjectAssociationMergerNode::objectsCallback(
         }
       }
       if (!is_overlapped) {
-        output_msg.objects.push_back(unknown_object);
+        //output_msg.objects.push_back(unknown_object);
       }
     }
   }
