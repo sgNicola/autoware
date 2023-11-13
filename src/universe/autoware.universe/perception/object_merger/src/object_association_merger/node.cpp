@@ -157,13 +157,14 @@ void ObjectAssociationMergerNode::objectsCallback(
           break;
         case PriorityMode::Confidence:
           if (object1.existence_probability <= object0.existence_probability)
-            output_msg.objects.push_back(object0);
+            // output_msg.objects.push_back(object0);
+            output_msg.objects.push_back(object1);
           else
             output_msg.objects.push_back(object1);
           break;
       }
     } else {  // not found
-      output_msg.objects.push_back(object0);
+      // output_msg.objects.push_back(object0);
     }
   }
   for (size_t object1_idx = 0; object1_idx < objects1.size(); ++object1_idx) {
