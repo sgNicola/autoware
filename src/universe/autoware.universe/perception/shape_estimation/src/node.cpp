@@ -101,9 +101,9 @@ void ShapeEstimationNode::callback(const DetectedObjectsWithFeature::ConstShared
       continue;
     }
 
-    output_msg.feature_objects.push_back(feature_object);
-    output_msg.feature_objects.back().object.shape = shape;
-    output_msg.feature_objects.back().object.kinematics.pose_with_covariance.pose = pose;
+    // output_msg.feature_objects.push_back(feature_object);
+    // output_msg.feature_objects.back().object.shape = shape;
+    // output_msg.feature_objects.back().object.kinematics.pose_with_covariance.pose = pose;
   }
 
   // Publish
