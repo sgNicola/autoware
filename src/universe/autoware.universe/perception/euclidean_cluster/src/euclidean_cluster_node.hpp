@@ -39,6 +39,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr debug_pub_;
 
   std::shared_ptr<EuclideanCluster> cluster_;
+  int cluster_faulty_mode;
+  int timeLatencyDuration;
 };
 
 }  // namespace euclidean_cluster

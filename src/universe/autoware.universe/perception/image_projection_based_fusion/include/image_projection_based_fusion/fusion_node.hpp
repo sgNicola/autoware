@@ -91,6 +91,9 @@ protected:
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
 
+  int fusion_faulty_mode;
+  int timeLatencyDuration;
+
   // camera_info
   std::map<std::size_t, sensor_msgs::msg::CameraInfo> camera_info_map_;
   std::vector<rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr> camera_info_subs_;

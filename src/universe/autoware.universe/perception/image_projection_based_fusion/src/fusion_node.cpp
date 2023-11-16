@@ -373,7 +373,7 @@ void FusionNode<Msg, Obj>::publish(const Msg & output_msg)
   if (pub_ptr_->get_subscription_count() < 1) {
     return;
   }
-  pub_ptr_->publish(output_msg);
+  pub_ptr_->publish(output_msg);  
 }
 
 template class FusionNode<DetectedObjects, DetectedObject>;

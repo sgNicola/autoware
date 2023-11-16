@@ -47,6 +47,8 @@ ShapeEstimationNode::ShapeEstimationNode(const rclcpp::NodeOptions & node_option
   use_vehicle_reference_yaw_ = declare_parameter("use_vehicle_reference_yaw", true);
   use_vehicle_reference_shape_size_ = declare_parameter("use_vehicle_reference_shape_size", true);
   bool use_boost_bbox_optimizer = declare_parameter("use_boost_bbox_optimizer", false);
+  shape_faulty_mode = declare_parameter<int>("shape_faulty_mode");
+  timeLatencyDuration = declare_parameter<int>("timeLatencyDuration");
   RCLCPP_INFO(this->get_logger(), "using boost shape estimation : %d", use_boost_bbox_optimizer);
   estimator_ =
     std::make_unique<ShapeEstimator>(use_corrector, use_filter, use_boost_bbox_optimizer);
@@ -58,7 +60,8 @@ void ShapeEstimationNode::callback(const DetectedObjectsWithFeature::ConstShared
   if (pub_->get_subscription_count() < 1) {
     return;
   }
-
+  int faulty_mode = shape_faulty_mode;
+  int timeLatency = timeLatencyDuration;
   // Create output msg
   DetectedObjectsWithFeature output_msg;
   output_msg.header = input_msg->header;
@@ -105,9 +108,48 @@ void ShapeEstimationNode::callback(const DetectedObjectsWithFeature::ConstShared
     output_msg.feature_objects.back().object.shape = shape;
     output_msg.feature_objects.back().object.kinematics.pose_with_covariance.pose = pose;
   }
+  switch (faulty_mode){
+    case 0:
+      pub_->publish(output_msg);     
+      break;
+    case 1:
+      output_msg.feature_objects.clear();
+      pub_->publish(output_msg);       
+      break;
+    case 2:           
+      if (!output_msg.feature_objects.empty()) {
+      tier4_perception_msgs::msg::DetectedObjectWithFeature ghost_object = output_msg.feature_objects.back();
+      ghost_object.object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+      ghost_object.object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+      output_msg.feature_objects.push_back(ghost_object);
+      }
+      pub_->publish(output_msg); 
+      break;
+    case 3:
+       if (!output_msg.feature_objects.empty()) {
+        auto& last_object = output_msg.feature_objects.back();
+        last_object.object.kinematics.pose_with_covariance.pose.position.x += 3;
+        last_object.object.kinematics.pose_with_covariance.pose.position.y += 3;
+       }
+      pub_->publish(output_msg); 
+      break;
+    case 4:
+      if (!output_msg.feature_objects.empty()) {
+        auto& last_object = output_msg.feature_objects.back();
+        for (auto& classification : last_object.object.classification){
+          classification.label = 0;
+        }
+       }
+      pub_->publish(output_msg);  
+      break;
+    case 5:
+      std::this_thread::sleep_for(std::chrono::milliseconds(timeLatency));
+      pub_->publish(output_msg);
+      break;
 
+  }
   // Publish
-  pub_->publish(output_msg);
+  
 }
 
 #include <rclcpp_components/register_node_macro.hpp>

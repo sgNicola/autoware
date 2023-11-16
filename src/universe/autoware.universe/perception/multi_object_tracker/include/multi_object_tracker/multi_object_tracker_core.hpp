@@ -61,7 +61,8 @@ private:
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
-
+  int faulty_tracker_mode;
+  int timeLatencyDuration;
   std::map<std::uint8_t, std::string> tracker_map_;
 
   void onMeasurement(
@@ -69,6 +70,7 @@ private:
   void onTimer();
 
   std::string world_frame_id_;  // tracking frame
+  
   std::list<std::shared_ptr<Tracker>> list_tracker_;
   std::unique_ptr<DataAssociation> data_association_;
 

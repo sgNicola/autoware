@@ -32,6 +32,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <chrono>
 
 namespace centerpoint
 {
@@ -70,6 +71,8 @@ LidarCenterPointNode::LidarCenterPointNode(const rclcpp::NodeOptions & node_opti
     this->declare_parameter<std::vector<int64_t>>("allow_remapping_by_area_matrix");
   const auto min_area_matrix = this->declare_parameter<std::vector<double>>("min_area_matrix");
   const auto max_area_matrix = this->declare_parameter<std::vector<double>>("max_area_matrix");
+  lidar_faulty_mode = declare_parameter<int>("lidar_faulty_mode");
+  timeLatencyDuration = declare_parameter<int>("timeLatencyDuration");
 
   detection_class_remapper_.setParameters(
     allow_remapping_by_area_matrix, min_area_matrix, max_area_matrix);
@@ -149,16 +152,69 @@ void LidarCenterPointNode::pointCloudCallback(
     box3DToDetectedObject(box3d, class_names_, has_twist_, obj);
     raw_objects.emplace_back(obj);
   }
-
+  int faulty_mode = lidar_faulty_mode;
+  int timeLatency = timeLatencyDuration;
   autoware_auto_perception_msgs::msg::DetectedObjects output_msg;
   output_msg.header = input_pointcloud_msg->header;
   output_msg.objects = iou_bev_nms_.apply(raw_objects);
 
-  detection_class_remapper_.mapClasses(output_msg);
-
-  if (objects_sub_count > 0) {
-    objects_pub_->publish(output_msg);
+  switch (faulty_mode){
+    case 0:
+      detection_class_remapper_.mapClasses(output_msg);
+      if (objects_sub_count > 0) {
+        objects_pub_->publish(output_msg);
+      }      
+      break;
+    case 1:
+      output_msg.objects.clear();
+      detection_class_remapper_.mapClasses(output_msg);
+      objects_pub_->publish(output_msg);      
+      break;
+    case 2:
+      if (!output_msg.objects.empty()) {
+      autoware_auto_perception_msgs::msg::DetectedObject ghost_object = output_msg.objects.back();
+      ghost_object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+      ghost_object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+      output_msg.objects.push_back(ghost_object);
+      }
+      detection_class_remapper_.mapClasses(output_msg);
+      if (objects_sub_count > 0) {
+        objects_pub_->publish(output_msg);
+      }      
+      break;
+    case 3:
+      if (!output_msg.objects.empty()) {
+        auto& last_object = output_msg.objects.back();
+        last_object.kinematics.pose_with_covariance.pose.position.x += 3;
+        last_object.kinematics.pose_with_covariance.pose.position.y += 3;
+       }
+      detection_class_remapper_.mapClasses(output_msg);
+      if (objects_sub_count > 0) {
+        objects_pub_->publish(output_msg);
+      }       
+      break;
+    case 4:
+      if (!output_msg.objects.empty()) {
+        auto& last_object = output_msg.objects.back();
+        for (auto& classification : last_object.classification){
+          classification.label = 0;
+        }
+       }
+      detection_class_remapper_.mapClasses(output_msg);
+      if (objects_sub_count > 0) {
+        objects_pub_->publish(output_msg);
+      } 
+      break;
+    case 5:
+      std::this_thread::sleep_for(std::chrono::milliseconds(timeLatency));
+      detection_class_remapper_.mapClasses(output_msg);
+      if (objects_sub_count > 0) {
+        objects_pub_->publish(output_msg);
+      }      
+      break;
   }
+  
+
 
   // add processing time for debug
   if (debug_publisher_ptr_ && stop_watch_ptr_) {

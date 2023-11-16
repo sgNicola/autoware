@@ -39,6 +39,8 @@ RoiClusterFusionNode::RoiClusterFusionNode(const rclcpp::NodeOptions & options)
   use_iou_ = declare_parameter("use_iou", false);
   use_cluster_semantic_type_ = declare_parameter("use_cluster_semantic_type", false);
   iou_threshold_ = declare_parameter("iou_threshold", 0.1);
+  fusion_faulty_mode = declare_parameter<int>("fusion_faulty_mode");
+  timeLatencyDuration = declare_parameter<int>("timeLatencyDuration");
 }
 
 void RoiClusterFusionNode::preprocess(DetectedObjectsWithFeature & output_cluster_msg)
@@ -61,7 +63,9 @@ void RoiClusterFusionNode::fuseOnSingleImage(
   std::vector<sensor_msgs::msg::RegionOfInterest> debug_image_rois;
   std::vector<sensor_msgs::msg::RegionOfInterest> debug_pointcloud_rois;
   std::vector<Eigen::Vector2d> debug_image_points;
-
+  
+  int faulty_mode = fusion_faulty_mode;
+  int timeLatency = timeLatencyDuration;
   Eigen::Matrix4d projection;
   projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2), camera_info.p.at(3),
     camera_info.p.at(4), camera_info.p.at(5), camera_info.p.at(6), camera_info.p.at(7),
@@ -166,7 +170,46 @@ void RoiClusterFusionNode::fuseOnSingleImage(
       output_cluster_msg.feature_objects.at(index).object.classification =
         feature_obj.object.classification;
     }
-    debug_image_rois.push_back(feature_obj.feature.roi);
+    switch (faulty_mode){
+      case 0:
+        debug_image_rois.push_back(feature_obj.feature.roi);
+        break;
+      case 1:
+        output_cluster_msg.feature_objects.clear();
+        debug_image_rois.push_back(feature_obj.feature.roi);       
+        break;
+      case 2:           
+        if (!output_cluster_msg.feature_objects.empty()) {
+        tier4_perception_msgs::msg::DetectedObjectWithFeature ghost_object =output_cluster_msg.feature_objects.back();
+        ghost_object.object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+        ghost_object.object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+        output_cluster_msg.feature_objects.push_back(ghost_object);
+        }
+        debug_image_rois.push_back(feature_obj.feature.roi); 
+        break;
+      case 3:
+        if (!output_cluster_msg.feature_objects.empty()) {
+          auto& last_object = output_cluster_msg.feature_objects.back();
+          last_object.object.kinematics.pose_with_covariance.pose.position.x += 3;
+          last_object.object.kinematics.pose_with_covariance.pose.position.y += 3;
+        }
+        debug_image_rois.push_back(feature_obj.feature.roi);
+        break;
+      case 4:
+        if (!output_cluster_msg.feature_objects.empty()) {
+          auto& last_object = output_cluster_msg.feature_objects.back();
+          for (auto& classification : last_object.object.classification){
+            classification.label = 0;
+          }
+        }
+        debug_image_rois.push_back(feature_obj.feature.roi);
+        break;
+      case 5:
+        std::this_thread::sleep_for(std::chrono::milliseconds(timeLatency));
+        debug_image_rois.push_back(feature_obj.feature.roi); 
+        break;
+    }    
+    
   }
 
   if (debugger_) {

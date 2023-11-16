@@ -5,6 +5,8 @@
   <arg name="world_frame_id" default="map"/>
   <arg name="publish_rate" default="10.0"/>
   <arg name="enable_delay_compensation" default="false"/>
+  <arg name="faulty_tracker_mode" default="0"/>
+  <arg name="timeLatencyDuration" default="0"/>
   <arg name="tracker_setting_path" default="$(find-pkg-share multi_object_tracker)/config/default_tracker.param.yaml"/>
   <arg name="data_association_matrix_path" default="$(find-pkg-share multi_object_tracker)/config/data_association_matrix.param.yaml"/>
 
@@ -14,6 +16,8 @@
     <param name="world_frame_id" value="$(var world_frame_id)"/>
     <param name="publish_rate" value="$(var publish_rate)"/>
     <param name="enable_delay_compensation" value="$(var enable_delay_compensation)"/>
+    <param name="faulty_tracker_mode" value="$(var faulty_tracker_mode)"/>
+    <param name="timeLatencyDuration" value="$(var timeLatencyDuration)"/>
     <param from="$(var tracker_setting_path)"/>
     <param from="$(var data_association_matrix_path)"/>
   </node>

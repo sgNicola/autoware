@@ -23,6 +23,9 @@
   <!-- for eval variable-->
   <arg name="input_rois_number" default="$(var input/rois_number)"/>
 
+  <!-- for fault injection-->
+  <arg name="fusion_faulty_mode" default="0"/>  
+  <arg name="timeLatencyDuration" default="0"/>  
   <!-- debug -->
   <arg name="debug_mode" default="false"/>
   <arg name="filter_scope_minx" default="-100"/>
@@ -72,6 +75,9 @@
       <param name="use_iou_x" value="false"/>
       <param name="use_iou_y" value="false"/>
       <param name="iou_threshold" value="0.35"/>
+      <param name="rois_number" value="$(var input/rois_number)"/>
+      <param name="fusion_faulty_mode" value="$(var fusion_faulty_mode)"/>
+      <param name="timeLatencyDuration" value="$(var timeLatencyDuration)"/>
       <param name="rois_number" value="$(var input/rois_number)"/>
       <param from="$(var sync_param_path)"/>
       <remap from="input" to="$(var input/clusters)"/>

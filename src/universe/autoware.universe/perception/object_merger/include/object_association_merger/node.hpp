@@ -69,6 +69,8 @@ private:
   Sync sync_;
   std::unique_ptr<DataAssociation> data_association_;
   std::string base_link_frame_id_;  // associated with the base_link frame
+  int merger_faulty_mode;
+  int timeLatencyDuration;
 
   PriorityMode priority_mode_;
   bool remove_overlapped_unknown_objects_;

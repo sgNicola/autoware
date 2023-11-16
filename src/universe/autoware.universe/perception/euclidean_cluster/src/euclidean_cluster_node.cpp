@@ -17,6 +17,7 @@
 #include "euclidean_cluster/utils.hpp"
 
 #include <vector>
+#include <chrono>
 
 namespace euclidean_cluster
 {
@@ -27,6 +28,8 @@ EuclideanClusterNode::EuclideanClusterNode(const rclcpp::NodeOptions & options)
   const int min_cluster_size = this->declare_parameter("min_cluster_size", 3);
   const int max_cluster_size = this->declare_parameter("max_cluster_size", 200);
   const float tolerance = this->declare_parameter("tolerance", 1.0);
+  cluster_faulty_mode = declare_parameter<int>("cluster_faulty_mode");
+  timeLatencyDuration = declare_parameter<int>("timeLatencyDuration");
   cluster_ =
     std::make_shared<EuclideanCluster>(use_height, min_cluster_size, max_cluster_size, tolerance);
 
@@ -53,7 +56,49 @@ void EuclideanClusterNode::onPointCloud(
 
   // build output msg
   tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
-  convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+  
+  int faulty_mode = cluster_faulty_mode;
+  int timeLatency = timeLatencyDuration;
+  switch (faulty_mode){
+    case 0:
+      convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+      break;
+    case 1:
+      convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+      output.feature_objects.clear();
+      break;
+    case 2:
+      convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+      if (!output.feature_objects.empty()) {
+      tier4_perception_msgs::msg::DetectedObjectWithFeature ghost_object = output.feature_objects.back();
+      ghost_object.object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+      ghost_object.object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+      output.feature_objects.push_back(ghost_object);
+      }
+      break;
+    case 3:
+      convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+       if (!output.feature_objects.empty()) {
+        auto& last_object = output.feature_objects.back();
+        last_object.object.kinematics.pose_with_covariance.pose.position.x += 3;
+        last_object.object.kinematics.pose_with_covariance.pose.position.y += 3;
+       }
+      break;
+    case 4:
+      convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+      if (!output.feature_objects.empty()) {
+        auto& last_object = output.feature_objects.back();
+        for (auto& classification : last_object.object.classification){
+          classification.label = 0;
+        }
+       }
+      break;
+    case 5:
+      convertPointCloudClusters2Msg(input_msg->header, clusters, output);
+      std::this_thread::sleep_for(std::chrono::milliseconds(timeLatency));
+      break;
+
+  }
   cluster_pub_->publish(output);
 
   // build debug msg

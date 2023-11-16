@@ -95,7 +95,8 @@ ObjectAssociationMergerNode::ObjectAssociationMergerNode(const rclcpp::NodeOptio
     declare_parameter<double>("recall_threshold_to_judge_overlapped", 0.5);
   overlapped_judge_param_.generalized_iou_threshold =
     declare_parameter<double>("generalized_iou_threshold");
-
+  merger_faulty_mode = declare_parameter<int>("merger_faulty_mode");
+  timeLatencyDuration = declare_parameter<int>("timeLatencyDuration");
   // get distance_threshold_map from distance_threshold_list
   /** TODO(Shin-kyoto):
    *  this implementation assumes index of vector shows class_label.
@@ -143,67 +144,239 @@ void ObjectAssociationMergerNode::objectsCallback(
   Eigen::MatrixXd score_matrix =
     data_association_->calcScoreMatrix(transformed_objects1, transformed_objects0);
   data_association_->assign(score_matrix, direct_assignment, reverse_assignment);
-
-  for (size_t object0_idx = 0; object0_idx < objects0.size(); ++object0_idx) {
-    const auto & object0 = objects0.at(object0_idx);
-    if (direct_assignment.find(object0_idx) != direct_assignment.end()) {  // found and merge
-      const auto & object1 = objects1.at(direct_assignment.at(object0_idx));
-      switch (priority_mode_) {
-        case PriorityMode::Object0:
+  int faulty_mode = merger_faulty_mode;
+  int timeLatency = timeLatencyDuration;
+  switch (faulty_mode){
+    case 0:
+      for (size_t object0_idx = 0; object0_idx < objects0.size(); ++object0_idx) {
+        const auto & object0 = objects0.at(object0_idx);
+        if (direct_assignment.find(object0_idx) != direct_assignment.end()) {  // found and merge
+          const auto & object1 = objects1.at(direct_assignment.at(object0_idx));
+          switch (priority_mode_) {
+            case PriorityMode::Object0:
+              output_msg.objects.push_back(object0);
+              break;
+            case PriorityMode::Object1:
+              output_msg.objects.push_back(object1);
+              break;
+            case PriorityMode::Confidence:
+              if (object1.existence_probability <= object0.existence_probability)
+                output_msg.objects.push_back(object0);
+              else
+                output_msg.objects.push_back(object1);
+              break;
+          }
+        } else {  // not found
           output_msg.objects.push_back(object0);
-          break;
-        case PriorityMode::Object1:
-          output_msg.objects.push_back(object1);
-          break;
-        case PriorityMode::Confidence:
-          if (object1.existence_probability <= object0.existence_probability)
-            output_msg.objects.push_back(object0);
-          else
-            output_msg.objects.push_back(object1);
-          break;
-      }
-    } else {  // not found
-      output_msg.objects.push_back(object0);
-    }
-  }
-  for (size_t object1_idx = 0; object1_idx < objects1.size(); ++object1_idx) {
-    const auto & object1 = objects1.at(object1_idx);
-    if (reverse_assignment.find(object1_idx) != reverse_assignment.end()) {  // found
-    } else {                                                                 // not found
-      output_msg.objects.push_back(object1);
-    }
-  }
-
-  // Remove overlapped unknown object
-  if (remove_overlapped_unknown_objects_) {
-    std::vector<autoware_auto_perception_msgs::msg::DetectedObject> unknown_objects, known_objects;
-    unknown_objects.reserve(output_msg.objects.size());
-    known_objects.reserve(output_msg.objects.size());
-    for (const auto & object : output_msg.objects) {
-      if (perception_utils::getHighestProbLabel(object.classification) == Label::UNKNOWN) {
-        unknown_objects.push_back(object);
-      } else {
-        known_objects.push_back(object);
-      }
-    }
-    output_msg.objects.clear();
-    output_msg.objects = known_objects;
-    for (const auto & unknown_object : unknown_objects) {
-      bool is_overlapped = false;
-      for (const auto & known_object : known_objects) {
-        if (isUnknownObjectOverlapped(
-              unknown_object, known_object, overlapped_judge_param_.precision_threshold,
-              overlapped_judge_param_.recall_threshold,
-              overlapped_judge_param_.distance_threshold_map,
-              overlapped_judge_param_.generalized_iou_threshold)) {
-          is_overlapped = true;
-          break;
         }
       }
-      if (!is_overlapped) {
-        output_msg.objects.push_back(unknown_object);
+      for (size_t object1_idx = 0; object1_idx < objects1.size(); ++object1_idx) {
+        const auto & object1 = objects1.at(object1_idx);
+        if (reverse_assignment.find(object1_idx) != reverse_assignment.end()) {  // found
+        } else {                                                                 // not found
+          output_msg.objects.push_back(object1);
+        }
       }
-    }
+
+      // Remove overlapped unknown object
+      if (remove_overlapped_unknown_objects_) {
+        std::vector<autoware_auto_perception_msgs::msg::DetectedObject> unknown_objects, known_objects;
+        unknown_objects.reserve(output_msg.objects.size());
+        known_objects.reserve(output_msg.objects.size());
+        for (const auto & object : output_msg.objects) {
+          if (perception_utils::getHighestProbLabel(object.classification) == Label::UNKNOWN) {
+            unknown_objects.push_back(object);
+          } else {
+            known_objects.push_back(object);
+          }
+        }
+        output_msg.objects.clear();
+        output_msg.objects = known_objects;
+        for (const auto & unknown_object : unknown_objects) {
+          bool is_overlapped = false;
+          for (const auto & known_object : known_objects) {
+            if (isUnknownObjectOverlapped(
+                  unknown_object, known_object, overlapped_judge_param_.precision_threshold,
+                  overlapped_judge_param_.recall_threshold,
+                  overlapped_judge_param_.distance_threshold_map,
+                  overlapped_judge_param_.generalized_iou_threshold)) {
+              is_overlapped = true;
+              break;
+            }
+          }
+          if (!is_overlapped) {
+            output_msg.objects.push_back(unknown_object);
+          }
+        }
+      }
+      break;
+    case 1:
+      for (size_t object0_idx = 0; object0_idx < objects0.size(); ++object0_idx) {
+        const auto & object0 = objects0.at(object0_idx);
+        if (direct_assignment.find(object0_idx) != direct_assignment.end()) {  // found and merge
+          const auto & object1 = objects1.at(direct_assignment.at(object0_idx));
+          switch (priority_mode_) {
+            case PriorityMode::Object0:
+              output_msg.objects.push_back(object0);
+              break;
+            case PriorityMode::Object1:
+              output_msg.objects.push_back(object1);
+              break;
+            case PriorityMode::Confidence:
+              if (object1.existence_probability <= object0.existence_probability)
+                output_msg.objects.push_back(object1);
+              else
+                output_msg.objects.push_back(object0);
+              break;
+          }
+        } else {  // not found
+          output_msg.objects.push_back(object0);
+        }
+      }
+      if (remove_overlapped_unknown_objects_) {
+        std::vector<autoware_auto_perception_msgs::msg::DetectedObject> unknown_objects, known_objects;
+        unknown_objects.reserve(output_msg.objects.size());
+        known_objects.reserve(output_msg.objects.size());
+        for (const auto & object : output_msg.objects) {
+          if (perception_utils::getHighestProbLabel(object.classification) == Label::UNKNOWN) {
+            unknown_objects.push_back(object);
+          } else {
+            known_objects.push_back(object);
+          }
+        }
+        output_msg.objects.clear();
+        output_msg.objects = known_objects;
+        for (const auto & unknown_object : unknown_objects) {
+          bool is_overlapped = false;
+          for (const auto & known_object : known_objects) {
+            if (isUnknownObjectOverlapped(
+                  unknown_object, known_object, overlapped_judge_param_.precision_threshold,
+                  overlapped_judge_param_.recall_threshold,
+                  overlapped_judge_param_.distance_threshold_map,
+                  overlapped_judge_param_.generalized_iou_threshold)) {
+              is_overlapped = true;
+              break;
+            }
+          }
+          if (!is_overlapped) {
+            output_msg.objects.push_back(unknown_object);
+          }
+        }
+      }           
+      break;
+    case 2:
+      for (size_t object0_idx = 0; object0_idx < objects0.size(); ++object0_idx) {
+        const auto & object0 = objects0.at(object0_idx);
+        (void)object0;
+      }
+      break;
+    case 3:
+      for (size_t object0_idx = 0; object0_idx < objects0.size(); ++object0_idx) {
+        const auto & object0 = objects0.at(object0_idx);
+        if (direct_assignment.find(object0_idx) != direct_assignment.end()) {  // found and merge
+          const auto & object1 = objects1.at(direct_assignment.at(object0_idx));
+          switch (priority_mode_) {
+            case PriorityMode::Object0:
+              output_msg.objects.push_back(object0);
+              break;
+            case PriorityMode::Object1:
+              output_msg.objects.push_back(object1);
+              break;
+            case PriorityMode::Confidence:
+              if (object1.existence_probability <= object0.existence_probability){
+                output_msg.objects.push_back(object0);
+                autoware_auto_perception_msgs::msg::DetectedObject ghost_object=object0;
+                ghost_object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+                ghost_object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+                output_msg.objects.push_back(ghost_object);
+              }
+              else{
+                output_msg.objects.push_back(object1);
+                autoware_auto_perception_msgs::msg::DetectedObject ghost_object=object1;
+                ghost_object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+                ghost_object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+                output_msg.objects.push_back(ghost_object);
+              }
+                
+              break;
+          }
+        } else {  // not found
+          output_msg.objects.push_back(object0);
+          autoware_auto_perception_msgs::msg::DetectedObject ghost_object=object0;
+          ghost_object.kinematics.pose_with_covariance.pose.position.x +=2.5;
+          ghost_object.kinematics.pose_with_covariance.pose.position.y +=2.5;
+          output_msg.objects.push_back(ghost_object);
+        }
+      }
+      for (size_t object1_idx = 0; object1_idx < objects1.size(); ++object1_idx) {
+        const auto & object1 = objects1.at(object1_idx);
+        output_msg.objects.push_back(object1);
+      }
+      break;       
+    case 4:
+      for (size_t object0_idx = 0; object0_idx < objects0.size(); ++object0_idx) {
+        const auto & object0 = objects0.at(object0_idx);
+        if (direct_assignment.find(object0_idx) != direct_assignment.end()) {  // found and merge
+          const auto & object1 = objects1.at(direct_assignment.at(object0_idx));
+          switch (priority_mode_) {
+            case PriorityMode::Object0:
+              output_msg.objects.push_back(object0);
+              break;
+            case PriorityMode::Object1:
+              output_msg.objects.push_back(object1);
+              break;
+            case PriorityMode::Confidence:
+              if (object1.existence_probability <= object0.existence_probability)
+                output_msg.objects.push_back(object0);
+              else
+                output_msg.objects.push_back(object1);
+              break;
+          }
+        } else {  // not found
+          output_msg.objects.push_back(object0);
+        }
+      }
+      for (size_t object1_idx = 0; object1_idx < objects1.size(); ++object1_idx) {
+        const auto & object1 = objects1.at(object1_idx);
+        if (reverse_assignment.find(object1_idx) != reverse_assignment.end()) {  // found
+        } else {                                                                 // not found
+          output_msg.objects.push_back(object1);
+        }
+      }
+
+      // Remove overlapped unknown object
+      if (remove_overlapped_unknown_objects_) {
+        std::vector<autoware_auto_perception_msgs::msg::DetectedObject> unknown_objects, known_objects;
+        unknown_objects.reserve(output_msg.objects.size());
+        known_objects.reserve(output_msg.objects.size());
+        for (const auto & object : output_msg.objects) {
+          if (perception_utils::getHighestProbLabel(object.classification) == Label::UNKNOWN) {
+            unknown_objects.push_back(object);
+          } else {
+            known_objects.push_back(object);
+          }
+        }
+        output_msg.objects.clear();
+        output_msg.objects = known_objects;
+        for (const auto & unknown_object : unknown_objects) {
+          bool is_overlapped = false;
+          for (const auto & known_object : known_objects) {
+            if (isUnknownObjectOverlapped(
+                  unknown_object, known_object, overlapped_judge_param_.precision_threshold,
+                  overlapped_judge_param_.recall_threshold,
+                  overlapped_judge_param_.distance_threshold_map,
+                  overlapped_judge_param_.generalized_iou_threshold)) {
+              is_overlapped = true;
+              break;
+            }
+          }
+          if (!is_overlapped) {
+            output_msg.objects.push_back(unknown_object);
+          }
+        }
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(timeLatency));
+      break;  
   }
 
   // publish output msg

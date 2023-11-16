@@ -7,6 +7,8 @@
   <arg name="use_vehicle_reference_yaw" default="false"/>
   <arg name="use_vehicle_reference_shape_size" default="false"/>
   <arg name="use_boost_bbox_optimizer" default="false"/>
+  <arg name="shape_faulty_mode" default="0"/>
+  <arg name="timeLatencyDuration" default="0"/>
   <node pkg="shape_estimation" exec="shape_estimation" name="$(var node_name)" output="screen">
     <remap from="input" to="$(var input/objects)"/>
     <remap from="objects" to="$(var output/objects)"/>
@@ -14,5 +16,7 @@
     <param name="use_corrector" value="$(var use_corrector)"/>
     <param name="use_vehicle_reference_yaw" value="$(var use_vehicle_reference_yaw)"/>
     <param name="use_boost_bbox_optimizer" value="$(var use_boost_bbox_optimizer)"/>
+    <param name="shape_faulty_mode" value="$(var shape_faulty_mode)"/>
+    <param name="timeLatencyDuration" value="$(var timeLatencyDuration)"/>
   </node>
 </launch>

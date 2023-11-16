@@ -53,6 +53,8 @@ private:
   float score_threshold_{0.0};
   std::vector<std::string> class_names_;
   bool has_twist_{false};
+  int lidar_faulty_mode;
+  int timeLatencyDuration;
 
   NonMaximumSuppression iou_bev_nms_;
   DetectionClassRemapper detection_class_remapper_;
